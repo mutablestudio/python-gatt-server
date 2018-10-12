@@ -44,6 +44,7 @@ class Application(dbus.service.Object):
         self.add_service(HeartRateService(bus, 0))
         self.add_service(BatteryService(bus, 1))
         self.add_service(TestService(bus, 2))
+        self.add_service(WiFiService(bus, 3))
 
     def get_path(self):
         return dbus.ObjectPath(self.path)
@@ -598,6 +599,118 @@ class TestSecureDescriptor(Descriptor):
     def ReadValue(self, options):
         return [
                 dbus.Byte('T'), dbus.Byte('e'), dbus.Byte('s'), dbus.Byte('t')
+        ]
+
+class WiFiService(Service):
+    WIFI_SVC_UUID = '12345678-1234-5678-1234-56789abcdef7'
+
+    def __init__(self, bus, index):
+        Service.__init__(self, bus, index, self.WIFI_SVC_UUID, True)
+        self.add_characteristic(WiFiStatusCharacteristic(bus, 0, self))
+        self.add_characteristic(WiFiSsidCharacteristic(bus, 1, self))
+        self.add_characteristic(WiFiPassphraseCharacteristic(bus, 2, self))
+
+class WiFiStatusCharacteristic(Characteristic):
+    WIFI_STATUS_CHRC_UUID = '12345678-1234-5678-1234-56789abcdef8'
+
+    def __init__(self, bus, index, service):
+        Characteristic.__init__(
+                self, bus, index,
+                self.WIFI_STATUS_CHRC_UUID,
+                ['read'],
+                service)
+        self.value = [
+            dbus.Byte('r'), dbus.Byte('e'), dbus.Byte('a'), dbus.Byte('d'), dbus.Byte('y')
+        ]
+        self.add_descriptor(WiFiStatusDescriptor(bus, 0, self))
+
+    def ReadValue(self, options):
+        print('WiFiStatusCharacteristic Read: ' + repr(self.value))
+        return self.value
+
+class WiFiStatusDescriptor(Descriptor):
+    WIFI_STATUS_DESC_UUID = '12345678-1234-5678-1234-56789abcdef9'
+
+    def __init__(self, bus, index, characteristic):
+        Descriptor.__init__(
+                self, bus, index,
+                self.WIFI_STATUS_DESC_UUID,
+                ['read'],
+                characteristic)
+
+    def ReadValue(self, options):
+        return [
+                dbus.Byte('s'), dbus.Byte('t'), dbus.Byte('a'), dbus.Byte('t'), dbus.Byte('e')
+        ]
+
+class WiFiSsidCharacteristic(Characteristic):
+    WIFI_SSID_CHRC_UUID = '12345678-1234-5678-1234-56789abcdefa'
+
+    def __init__(self, bus, index, service):
+        Characteristic.__init__(
+                self, bus, index,
+                self.WIFI_SSID_CHRC_UUID,
+                ['read', 'write'],
+                service)
+        self.value = []
+        self.add_descriptor(WiFiSsidDescriptor(bus, 0, self))
+
+    def ReadValue(self, options):
+        print('WiFiSsidCharacteristic Read: ' + repr(self.value))
+        return self.value
+
+    def WriteValue(self, value, options):
+        print('WiFiSsidCharacteristic Write: ' + repr(value))
+        self.value = value
+
+class WiFiSsidDescriptor(Descriptor):
+    WIFI_SSID_DESC_UUID = '12345678-1234-5678-1234-56789abcdefb'
+
+    def __init__(self, bus, index, characteristic):
+        Descriptor.__init__(
+                self, bus, index,
+                self.WIFI_SSID_DESC_UUID,
+                ['read'],
+                characteristic)
+
+    def ReadValue(self, options):
+        return [
+                dbus.Byte('S'), dbus.Byte('S'), dbus.Byte('I'), dbus.Byte('D')
+        ]
+
+class WiFiPassphraseCharacteristic(Characteristic):
+    WIFI_PASSPHRASE_CHRC_UUID = '12345678-1234-5678-1234-56789abcdefc'
+
+    def __init__(self, bus, index, service):
+        Characteristic.__init__(
+                self, bus, index,
+                self.WIFI_PASSPHRASE_CHRC_UUID,
+                ['read', 'write'],
+                service)
+        self.value = []
+        self.add_descriptor(WiFiPassphraseDescriptor(bus, 0, self))
+
+    def ReadValue(self, options):
+        print('WiFiPassphraseCharacteristic Read: ' + repr(self.value))
+        return self.value
+
+    def WriteValue(self, value, options):
+        print('WiFiPassphraseCharacteristic Write: ' + repr(value))
+        self.value = value
+
+class WiFiPassphraseDescriptor(Descriptor):
+    WIFI_PASSPHRASE_DESC_UUID = '12345678-1234-5678-1234-56789abcdefd'
+
+    def __init__(self, bus, index, characteristic):
+        Descriptor.__init__(
+                self, bus, index,
+                self.WIFI_PASSPHRASE_DESC_UUID,
+                ['read'],
+                characteristic)
+
+    def ReadValue(self, options):
+        return [
+                dbus.Byte('p'), dbus.Byte('a'), dbus.Byte('s'), dbus.Byte('s'), dbus.Byte('p'), dbus.Byte('h'), dbus.Byte('r'), dbus.Byte('a'), dbus.Byte('s'), dbus.Byte('e')
         ]
 
 def register_app_cb():
