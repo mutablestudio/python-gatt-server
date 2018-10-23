@@ -44,7 +44,7 @@ class Application(dbus.service.Object):
         self.add_service(HeartRateService(bus, 0))
         self.add_service(BatteryService(bus, 1))
         self.add_service(TestService(bus, 2))
-        self.add_service(WiFiService(bus, 3))
+        self.add_service(GatewayService(bus, 3))
 
     def get_path(self):
         return dbus.ObjectPath(self.path)
@@ -601,14 +601,17 @@ class TestSecureDescriptor(Descriptor):
                 dbus.Byte('T'), dbus.Byte('e'), dbus.Byte('s'), dbus.Byte('t')
         ]
 
-class WiFiService(Service):
-    WIFI_SVC_UUID = '12345678-1234-5678-1234-56789abcdef7'
+class GatewayService(Service):
+    GTW_SVC_UUID = '12345678-1234-5678-1234-56789abcdef7'
 
     def __init__(self, bus, index):
-        Service.__init__(self, bus, index, self.WIFI_SVC_UUID, True)
+        Service.__init__(self, bus, index, self.GTW_SVC_UUID, True)
         self.add_characteristic(WiFiStatusCharacteristic(bus, 0, self))
         self.add_characteristic(WiFiSsidCharacteristic(bus, 1, self))
         self.add_characteristic(WiFiPassphraseCharacteristic(bus, 2, self))
+        self.add_characteristic(LEDMatchCharacteristic(bus, 3, self))
+        self.add_characteristic(LEDMatchStatusCharacteristic(bus, 4, self))
+        self.add_characteristic(QRCodeCharacteristic(bus, 5, self))
 
 class WiFiStatusCharacteristic(Characteristic):
     WIFI_STATUS_CHRC_UUID = '12345678-1234-5678-1234-56789abcdef8'
@@ -617,17 +620,41 @@ class WiFiStatusCharacteristic(Characteristic):
         Characteristic.__init__(
                 self, bus, index,
                 self.WIFI_STATUS_CHRC_UUID,
-                ['read'],
+                ['read', 'notify'],
                 service)
         self.value = [
             dbus.Byte('r'), dbus.Byte('e'), dbus.Byte('a'), dbus.Byte('d'), dbus.Byte('y')
         ]
+        self.notifying = False
         self.add_descriptor(WiFiStatusDescriptor(bus, 0, self))
 
     def ReadValue(self, options):
         print('WiFiStatusCharacteristic Read: ' + repr(self.value))
         return self.value
 
+    def notify_wifi_status(self):
+        if not self.notifying:
+            return
+        self.PropertiesChanged(
+                GATT_CHRC_IFACE,
+                {'Value': [dbus.Byte(self.value)] }, [])
+        print('WIFI_STATUS_CHRC_UUID notify: ' + repr(self.value))
+
+    def StartNotify(self):
+        if self.notifying:
+            print('Already notifying, nothing to do')
+            return
+
+        self.notifying = True
+        self.notify_wifi_status()
+
+    def StopNotify(self):
+        if not self.notifying:
+            print('Not notifying, nothing to do')
+            return
+
+        self.notifying = False
+        
 class WiFiStatusDescriptor(Descriptor):
     WIFI_STATUS_DESC_UUID = '12345678-1234-5678-1234-56789abcdef9'
 
@@ -662,7 +689,7 @@ class WiFiSsidCharacteristic(Characteristic):
     def WriteValue(self, value, options):
         print('WiFiSsidCharacteristic Write: ' + repr(value))
         self.value = value
-
+        
 class WiFiSsidDescriptor(Descriptor):
     WIFI_SSID_DESC_UUID = '12345678-1234-5678-1234-56789abcdefb'
 
@@ -712,6 +739,90 @@ class WiFiPassphraseDescriptor(Descriptor):
         return [
                 dbus.Byte('p'), dbus.Byte('a'), dbus.Byte('s'), dbus.Byte('s'), dbus.Byte('p'), dbus.Byte('h'), dbus.Byte('r'), dbus.Byte('a'), dbus.Byte('s'), dbus.Byte('e')
         ]
+
+class LEDMatchCharacteristic(Characteristic):
+    LED_MATCH_CHRC_UUID = '12345678-1234-5678-1234-56789abcdefe'
+
+    def __init__(self, bus, index, service):
+        Characteristic.__init__(
+                self, bus, index,
+                self.LED_MATCH_CHRC_UUID,
+                ['read', 'write'],
+                service)
+        self.value = []
+
+    def ReadValue(self, options):
+        print('LED_MATCH_CHRC_UUID Read: ' + repr(self.value))
+        return self.value
+
+    def WriteValue(self, value, options):
+        print('LED_MATCH_CHRC_UUID Write: ' + repr(value))
+        self.value = value
+
+class LEDMatchStatusCharacteristic(Characteristic):
+    LED_MATCH_STATUS_CHRC_UUID = '12345678-1234-5678-1234-56789abcdeff'
+
+    def __init__(self, bus, index, service):
+        Characteristic.__init__(
+                self, bus, index,
+                self.LED_MATCH_STATUS_CHRC_UUID,
+                ['read', 'notify'],
+                service)
+        self.notifying = False
+        self.value = [
+            dbus.Byte('s'), dbus.Byte('u'), dbus.Byte('c'), dbus.Byte('c'), dbus.Byte('e'), dbus.Byte('s'), dbus.Byte('s')
+        ]
+
+    def ReadValue(self, options):
+        print('LED_MATCH_STATUS_CHRC_UUID Read: ' + repr(self.value))
+        return self.value
+
+    def WriteValue(self, value, options):
+        print('LED_MATCH_STATUS_CHRC_UUID Write: ' + repr(value))
+        self.value = value
+        
+    def notify_led_status(self):
+        if not self.notifying:
+            return
+        self.PropertiesChanged(
+                GATT_CHRC_IFACE,
+                {'Value': [dbus.Byte(self.value)] }, [])
+        print('LED_MATCH_STATUS_CHRC_UUID notify: ' + repr(self.value))
+        
+    def StartNotify(self):
+        if self.notifying:
+            print('Already notifying, nothing to do')
+            return
+
+        self.notifying = True
+        self.notify_led_status()
+
+    def StopNotify(self):
+        if not self.notifying:
+            print('Not notifying, nothing to do')
+            return
+
+        self.notifying = False
+        
+class QRCodeCharacteristic(Characteristic):
+    QR_CODE_CHRC_UUID = '12345678-1234-5678-1234-56789abcdefd'
+
+    def __init__(self, bus, index, service):
+        Characteristic.__init__(
+                self, bus, index,
+                self.QR_CODE_CHRC_UUID,
+                ['read', 'write'],
+                service)
+        self.value = []
+
+    def ReadValue(self, options):
+        print('QR_CODE_CHRC_UUID Read: ' + repr(self.value))
+        return self.value
+
+    def WriteValue(self, value, options):
+        print('QR_CODE_CHRC_UUID Write: ' + repr(value))
+        self.value = value
+        
 
 def register_app_cb():
     print('GATT application registered')
