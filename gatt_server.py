@@ -766,12 +766,10 @@ class LEDMatchStatusCharacteristic(Characteristic):
         Characteristic.__init__(
                 self, bus, index,
                 self.LED_MATCH_STATUS_CHRC_UUID,
-                ['read', 'notify'],
+                ['read', 'write', 'notify'],
                 service)
         self.notifying = False
-        self.value = [
-            dbus.Byte('s'), dbus.Byte('u'), dbus.Byte('c'), dbus.Byte('c'), dbus.Byte('e'), dbus.Byte('s'), dbus.Byte('s')
-        ]
+        self.value = [dbus.Byte('s'), dbus.Byte('u') ]
 
     def ReadValue(self, options):
         print('LED_MATCH_STATUS_CHRC_UUID Read: ' + repr(self.value))
@@ -780,20 +778,21 @@ class LEDMatchStatusCharacteristic(Characteristic):
     def WriteValue(self, value, options):
         print('LED_MATCH_STATUS_CHRC_UUID Write: ' + repr(value))
         self.value = value
+        self.notify_led_status()
+        return True
         
     def notify_led_status(self):
+        print(' notify_led_status: ' + repr(self.notifying))
         if not self.notifying:
             return
-        self.PropertiesChanged(
-                GATT_CHRC_IFACE,
-                {'Value': [dbus.Byte(self.value)] }, [])
+        self.PropertiesChanged(GATT_CHRC_IFACE, {'Value': self.value}, [])
         print('LED_MATCH_STATUS_CHRC_UUID notify: ' + repr(self.value))
         
     def StartNotify(self):
         if self.notifying:
             print('Already notifying, nothing to do')
             return
-
+        print('LED_MATCH_STATUS_CHRC_UUID notify: StartNotify')
         self.notifying = True
         self.notify_led_status()
 
