@@ -620,7 +620,7 @@ class WiFiStatusCharacteristic(Characteristic):
         Characteristic.__init__(
                 self, bus, index,
                 self.WIFI_STATUS_CHRC_UUID,
-                ['read', 'notify'],
+                ['read', 'write', 'notify'],
                 service)
         self.value = [
             dbus.Byte('r'), dbus.Byte('e'), dbus.Byte('a'), dbus.Byte('d'), dbus.Byte('y')
@@ -632,12 +632,17 @@ class WiFiStatusCharacteristic(Characteristic):
         print('WiFiStatusCharacteristic Read: ' + repr(self.value))
         return self.value
 
+    def WriteValue(self, value, options):
+        print('WIFI_STATUS_CHRC_UUID Write: ' + repr(value))
+        self.value = value
+        self.notify_wifi_status()
+        return True
+      
     def notify_wifi_status(self):
+       print('notify_wifi_status: ' + repr(self.notifying))
         if not self.notifying:
             return
-        self.PropertiesChanged(
-                GATT_CHRC_IFACE,
-                {'Value': [dbus.Byte(self.value)] }, [])
+        self.PropertiesChanged(GATT_CHRC_IFACE, {'Value': self.value}, [])
         print('WIFI_STATUS_CHRC_UUID notify: ' + repr(self.value))
 
     def StartNotify(self):
